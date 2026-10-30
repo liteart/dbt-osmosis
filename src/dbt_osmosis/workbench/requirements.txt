@@ -1,4 +1,4 @@
-dbt-osmosis[workbench,duckdb]==1.5.1+liteart.1
+dbt-osmosis[workbench,duckdb] @ git+https://github.com/liteart/dbt-osmosis.git@upgrade/dbt-1.12-python-3.14
 setuptools>=84.1,<85
 # Keep Streamlit deployment resolution above OSV-flagged vulnerable lower bounds.
 gitpython>=3.1.50

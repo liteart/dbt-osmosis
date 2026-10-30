@@ -130,7 +130,10 @@ def test_workbench_requirements_reference_current_supported_extras() -> None:
     requirements = (ROOT / "src/dbt_osmosis/workbench/requirements.txt").read_text()
 
     assert "==1.1.5" not in requirements
-    assert f"dbt-osmosis[workbench,duckdb]=={_pyproject()['project']['version']}" in requirements
+    assert (
+        "dbt-osmosis[workbench,duckdb] @ "
+        "git+https://github.com/liteart/dbt-osmosis.git@upgrade/dbt-1.12-python-3.14"
+    ) in requirements
     for constraint in (
         "gitpython>=3.1.50",
         "h11>=0.16.0",
@@ -140,6 +143,15 @@ def test_workbench_requirements_reference_current_supported_extras() -> None:
         "pyarrow>=23.0.1",
     ):
         assert constraint in requirements
+
+
+def test_interface_dependency_is_pinned_to_patched_github_commit() -> None:
+    requirements = [Requirement(item) for item in _pyproject()["project"]["dependencies"]]
+    interface = next(req for req in requirements if req.name == "dbt-core-interface")
+    assert interface.url == (
+        "git+https://github.com/liteart/dbt-core-interface.git@"
+        "7da37d03bb18fc70e9c02d3ba306a7de15c601c0"
+    )
 
 
 def test_dev_dependency_surfaces_are_canonicalized() -> None:

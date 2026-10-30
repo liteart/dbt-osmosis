@@ -44,9 +44,10 @@ changes rather than replacing the upstream changelog.
   use the source's physical identifier rather than its logical name.
 - Fork package version: `1.5.1+liteart.1` (PEP 440 local version).
 
-The upgrade remains in progress until the final dependency, test and security
-checks pass. Lockfile updates do not by themselves prove compatibility of all
-Python versions, optional extras or adapters.
+The interface dependency is pinned to a specific commit in the public GitHub
+fork, rather than the incompatible upstream PyPI release. Installing this fork
+requires Git and network access to GitHub. Lockfile updates do not by themselves
+prove compatibility of all Python versions, optional extras or adapters.
 
 ## Local verification so far
 
@@ -70,6 +71,10 @@ Python versions, optional extras or adapters.
   with workbench and DuckDB extras and dbt Core 1.12.6. Dependency consistency
   and the CLI version passed; `pip-audit` found no known vulnerabilities in
   published packages but could not audit the two local fork builds via PyPI.
+- The rebuilt wheel also installed into a fresh Python 3.14.4 environment with
+  workbench, DuckDB and dbt Core 1.12.6, fetching the interface automatically
+  from GitHub at commit `7da37d03bb18fc70e9c02d3ba306a7de15c601c0`.
+  `uv pip check` passed without a separate interface wheel.
 - The earlier local wheels and extras were smoke-tested on Python 3.10.20 with
   dbt Core 1.12.6: dependency consistency, the CLI version and profiling HTML
   passed. However, that workbench environment resolves Pillow 12.3.0, for which
@@ -96,25 +101,21 @@ Python versions, optional extras or adapters.
 - The docs npm audit reports five low-severity dependency-chain findings caused
   by `deepmerge`; the upstream version has no non-vulnerable 4.x release.
 
-To reproduce the local Python 3.14 test environment from these two adjacent
-checkouts, run the following from the dbt-osmosis checkout. This is a local
-development procedure, not a published or independently installable release:
+To reproduce the local Python 3.14 test environment from the dbt-osmosis
+checkout, run the following. The lock fetches the pinned public interface fork:
 
 ```bash
 UV_PROJECT_ENVIRONMENT=/tmp/dbt-osmosis-fork-env uv sync --locked --python 3.14 --all-extras
-uv pip install --python /tmp/dbt-osmosis-fork-env/bin/python --no-deps -e ../dbt-core-interface
 uv pip check --python /tmp/dbt-osmosis-fork-env/bin/python
 ```
 
 ## Known limitations
 
-- Published `dbt-core-interface` 1.1.7 declares Python `<3.14`. A separate local
-  interface patch was tested with dbt Core 1.12, but this project still resolves
-  the upstream distribution until a patched fork is available and wired in.
-  Python 3.14 installations and the Python 3.14 CI matrix jobs are therefore
-  not yet supported for release.
-- The workbench's pinned fork version in `requirements.txt` requires that build
-  to be published to an accessible package index before Streamlit deployment.
+- Published `dbt-core-interface` 1.1.7 declares Python `<3.14`, so this fork
+  installs the patched interface directly from its pinned GitHub commit. This
+  direct Git dependency is unsuitable for publishing as-is on PyPI.
+- The workbench deployment requirements point at the fork's upgrade branch. A
+  branch may move; pin a release commit when immutable deployment is required.
 - npm audit reports `deepmerge` 4.3.1, an indirect Docusaurus build dependency,
   for GHSA-gcqx-w48m-w2h4 (low). There is no fixed release in the affected 4.x
   line; do not feed untrusted objects into the build or development server.

@@ -935,17 +935,14 @@ sdist = { url = "https://files.pythonhosted.org/packages/cc/5d/7b4abb8623fae9159
 
 [[package]]
 name = "dbt-core-interface"
-version = "1.1.7"
-source = { registry = "https://pypi.org/simple" }
+version = "1.1.8+liteart.1"
+source = { git = "https://github.com/liteart/dbt-core-interface.git?rev=7da37d03bb18fc70e9c02d3ba306a7de15c601c0#7da37d03bb18fc70e9c02d3ba306a7de15c601c0" }
 dependencies = [
     { name = "dbt-adapters" },
     { name = "dbt-core" },
+    { name = "pyyaml" },
     { name = "requests" },
     { name = "rich" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/3e/fe/75fbee7be8d58e310505cfe9a963051f16ba57a75bf2b1d6fca9129323f7/dbt_core_interface-1.1.7.tar.gz", hash = "sha256:f61417665c3db28be3dcc9ca01d5e7d15d0508b0da7ac8e1fb52145a91b31a14", size = 80432, upload-time = "2026-01-11T08:11:42.799Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ef/54/987736dc6ac05bf4d66fc6b8bf21d4f5da815ada2fe78a273889c7cc8692/dbt_core_interface-1.1.7-py3-none-any.whl", hash = "sha256:1b9631f6e9aed0fead98b724e261f608e035474f7a229cbc2206f16e1a05238c", size = 93271, upload-time = "2026-01-11T08:11:41.312Z" },
 ]
 
 [[package]]
@@ -1071,7 +1068,7 @@ requires-dist = [
     { name = "click", specifier = ">7,<9" },
     { name = "dbt-common", specifier = ">=1,<2" },
     { name = "dbt-core", specifier = ">=1.8" },
-    { name = "dbt-core-interface", specifier = ">=1.1.7" },
+    { name = "dbt-core-interface", git = "https://github.com/liteart/dbt-core-interface.git?rev=7da37d03bb18fc70e9c02d3ba306a7de15c601c0" },
     { name = "dbt-duckdb", marker = "extra == 'dev'", specifier = ">=1,<2" },
     { name = "dbt-duckdb", marker = "extra == 'duckdb'", specifier = ">=1,<2" },
     { name = "feedparser", marker = "python_full_version >= '3.11' and extra == 'workbench'", specifier = "~=6.0.12" },

@@ -45,6 +45,17 @@ Optional extras:
 
 ## Install
 
+To install this fork with dbt Core 1.12 and the DuckDB adapter, use Python 3.14
+and Git:
+
+```bash
+pip install "dbt-osmosis[workbench,duckdb] @ git+https://github.com/liteart/dbt-osmosis.git@upgrade/dbt-1.12-python-3.14" "dbt-core>=1.12,<1.13"
+```
+
+The fork pins its patched interface to a GitHub commit. The branch in this
+example can move; use a commit ID instead when an immutable install is needed.
+The commands below install the original upstream package from PyPI.
+
 With `uv`:
 
 ```bash

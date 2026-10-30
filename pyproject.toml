@@ -28,7 +28,7 @@ dependencies = [
   "click>7,<9",
   "dbt-common>=1,<2",
   "dbt-core>=1.8",
-  "dbt-core-interface>=1.1.7",
+  "dbt-core-interface @ git+https://github.com/liteart/dbt-core-interface.git@7da37d03bb18fc70e9c02d3ba306a7de15c601c0",
   "packaging>=24,<27",
   "ruamel.yaml>=0.17,<0.20",
   "rich>=10",
@@ -75,6 +75,9 @@ dev = [
 
 [project.scripts]
 "dbt-osmosis" = "dbt_osmosis.cli.main:cli"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.ruff]
 line-length = 100
