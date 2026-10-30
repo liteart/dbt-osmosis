@@ -111,6 +111,16 @@ uv pip check --python /tmp/dbt-osmosis-fork-env/bin/python
 
 ## Known limitations
 
+- Python 3.15 is not supported yet. On Python 3.15.2, dbt Core 1.12.6's
+  required `metricflow>=0.213.0,<1` could not be resolved by pip: the latest
+  published MetricFlow 0.213.0 declares Python `<3.15`. Independently, the
+  Workbench's `fg-data-profiling` 4.20.0 declares Python `<3.15` and requires
+  pandas `<3`; pip found no pandas 2.x binary for this Python version in the
+  tested Linux x86-64 environment. A dbt/DuckDB parse did succeed in an
+  experimental environment created by uv, but `uv pip check` reported the
+  incompatible MetricFlow installation. This smoke test does not establish
+  supported operation. Keep the Python upper bound until compatible upstream
+  releases are available and the full suite and Workbench are verified.
 - Published `dbt-core-interface` 1.1.7 declares Python `<3.14`, so this fork
   installs the patched interface directly from its pinned GitHub commit. This
   direct Git dependency is unsuitable for publishing as-is on PyPI.
