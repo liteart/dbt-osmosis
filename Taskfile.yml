@@ -24,13 +24,13 @@ tasks:
   lint:
     desc: Run ruff to check code for linting issues
     cmds:
-      - uvx ruff==0.15.17 check
+      - uvx ruff==0.17.3 check
 
   format:
     desc: Auto-fix imports, then format code with ruff
     cmds:
-      - uvx ruff==0.15.17 check --fix --select I
-      - uvx ruff==0.15.17 format --preview
+      - uvx ruff==0.17.3 check --fix --select I
+      - uvx ruff==0.17.3 format --preview
 
   dev:
     desc: Sets up dev environment (.venv + pre-commit), syncs dev extra
@@ -359,7 +359,7 @@ tasks:
                 "streamlit",
                 "streamlit_ace",
                 "streamlit_elements_fluence",
-                "ydata_profiling",
+                "data_profiling",
                 "feedparser",
                 "dbt_osmosis.workbench.components.dashboard",
                 "dbt_osmosis.workbench.components.feed",

@@ -1341,13 +1341,15 @@ class StagingModelSpec:
         """
         column_selects = ",\n".join(col.to_sql_select() for col in self.columns)
 
+        # These values become Jinja string literals: repr escapes quotes and
+        # backslashes so a source name cannot break out of its literal.
         source_ref = (
-            f"{{{{ source('{self.source_name.split('.')[0]}', '{self.source_name.split('.', 1)[1] if '.' in self.source_name else self.source_name}') }}}}"
+            f"{{{{ source({self.source_name.split('.')[0]!r}, {self.source_name.split('.', 1)[1] if '.' in self.source_name else self.source_name!r}) }}}}"
             if self.source_type == "source"
-            else f"{{{{ ref('{self.source_name}') }}}}"
+            else f"{{{{ ref({self.source_name!r}) }}}}"
         )
 
-        return f"""{{{{ config(materialized='{self.materialization}') }}}}
+        return f"""{{{{ config(materialized={self.materialization!r}) }}}}
 
 with source as (
 

@@ -139,7 +139,10 @@ def test_real_dbt_parse_exposes_dbt_110_config_shapes(tmp_path: Path) -> None:
         assert node.config.meta["sql_config_meta"] == "from_config_macro"
         assert node.config.extra["dbt-osmosis-skip-add-tags"] is True
         assert node.config.extra["dbt_osmosis_skip_add_columns"] is False
-        assert node.unrendered_config["dbt_osmosis_skip_add_columns"] is False
+        # dbt 1.12 may retain a string representation in unrendered_config;
+        # the rendered config must remain the source for this boolean setting.
+        assert node.unrendered_config["dbt_osmosis_skip_add_columns"] in (False, "False")
+        assert SettingsResolver().resolve("skip-add-columns", node, fallback=True) is False
 
         column = node.columns["configured_col"]
         assert column.config.meta["dbt-osmosis-string-length"] is True

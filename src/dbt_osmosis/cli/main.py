@@ -88,8 +88,22 @@ def _missing_streamlit_error() -> click.ClickException:
     )
 
 
+def _require_workbench_python() -> None:
+    if sys.version_info < (3, 11):
+        raise click.ClickException(
+            "The workbench requires Python 3.11 or newer because the available "
+            "Python 3.10 Pillow release has known security vulnerabilities. "
+            "The core CLI remains available on Python 3.10."
+        )
+
+
 def _streamlit_executable() -> str:
     executable = shutil.which("streamlit")
+    if executable is None:
+        name = "streamlit.exe" if os.name == "nt" else "streamlit"
+        sibling = Path(sys.executable).parent / name
+        if sibling.is_file():
+            executable = str(sibling)
     if executable is None:
         raise _missing_streamlit_error()
     return executable
@@ -125,9 +139,9 @@ def _check_workbench_app_dependencies() -> None:
     except ImportError as e:
         _record_missing_workbench_module(missing, "streamlit_elements_fluence", e)
     try:
-        importlib.import_module("ydata_profiling")
+        importlib.import_module("data_profiling")
     except ImportError as e:
-        _record_missing_workbench_module(missing, "ydata_profiling", e)
+        _record_missing_workbench_module(missing, "data_profiling", e)
 
     if missing:
         missing_modules = ", ".join(missing)
@@ -1009,6 +1023,7 @@ def _prepare_model_generation_outputs(
 ) -> tuple[str, Path, tuple[Path, dict[str, t.Any]]]:
     sql_content = _model_sql_content(model_spec)
     output_path_obj = _generated_model_sql_path(project, project_dir, model_spec, output_path)
+    _check_generated_sql_overwrite(output_path_obj, overwrite)
     schema_path = schema_yml or output_path_obj.parent / f"{model_spec['model_name']}.yml"
     schema_write = _prepare_generated_yaml_write(
         project=project,
@@ -1019,6 +1034,24 @@ def _prepare_model_generation_outputs(
         dry_run=dry_run,
     )
     return sql_content, output_path_obj, schema_write
+
+
+def _check_generated_sql_overwrite(path: Path, overwrite: bool) -> None:
+    if path.exists() and not overwrite:
+        raise click.ClickException(
+            f"Refusing to overwrite existing SQL at {path}. Pass --overwrite to replace it."
+        )
+
+
+def _write_generated_sql(path: Path, content: str, overwrite: bool) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with path.open("w" if overwrite else "x", encoding="utf-8") as output:
+            output.write(content)
+    except FileExistsError as exc:
+        raise click.ClickException(
+            f"Refusing to overwrite existing SQL at {path}. Pass --overwrite to replace it."
+        ) from exc
 
 
 def _echo_generated_model_header(model_spec: dict[str, t.Any]) -> None:
@@ -1054,8 +1087,7 @@ def _write_model_outputs(
     overwrite: bool,
 ) -> None:
     _write_prepared_generated_yaml(schema_write, overwrite=overwrite)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(sql_content)
+    _write_generated_sql(output_path, sql_content, overwrite)
     click.echo(f"\n:white_check_mark: Wrote SQL to: {output_path}")
     click.echo(f":white_check_mark: Wrote schema.yml to: {schema_write[0]}")
 
@@ -1161,6 +1193,7 @@ def _prepare_staging_outputs(
             result.sql_path,
             _get_generated_project_root(project, project_dir),
         )
+        _check_generated_sql_overwrite(sql_path, overwrite)
     return yaml_write, sql_path
 
 
@@ -1191,8 +1224,7 @@ def _write_staging_outputs(
     click.echo(f"\n:sparkles: Generated staging model: {result.staging_name}")
 
     if result.sql_content and sql_path:
-        sql_path.parent.mkdir(parents=True, exist_ok=True)
-        sql_path.write_text(result.sql_content, encoding="utf-8")
+        _write_generated_sql(sql_path, result.sql_content, overwrite)
         click.echo(f":white_check_mark: Wrote SQL to: {sql_path}")
     elif result.sql_content:
         raise click.ClickException("Generated SQL content is missing a target path.")
@@ -1231,7 +1263,7 @@ def _write_staging_outputs(
 @click.option(
     "--overwrite",
     is_flag=True,
-    help="Allow generated schema YAML to replace an existing file.",
+    help="Allow generated SQL and schema YAML to replace existing files.",
 )
 def model(
     query: str = "",
@@ -1401,7 +1433,7 @@ def sources(
 @click.option(
     "--overwrite",
     is_flag=True,
-    help="Allow generated staging YAML to replace an existing file.",
+    help="Allow generated staging SQL and YAML to replace existing files.",
 )
 def staging(
     source_name: str = "",
@@ -1514,7 +1546,7 @@ def generate_query(
 @click.option(
     "--overwrite",
     is_flag=True,
-    help="Allow generated schema YAML to replace an existing file.",
+    help="Allow generated SQL and schema YAML to replace existing files.",
 )
 def nl_generate_deprecated(
     query: str = "",
@@ -1639,6 +1671,7 @@ def workbench(
     pass --config to see the output of streamlit config show
     """
     logger.info(":water_wave: Executing dbt-osmosis\n")
+    _require_workbench_python()
     profiles_dir = _resolve_profiles_dir(project_dir, profiles_dir)
 
     if "--options" in ctx.args:
@@ -2723,8 +2756,10 @@ def _documentation_check_text(result: DocumentationCheckResult) -> str:
     lines = [
         "Documentation check summary",
         f"  Models described: {result.models_with_descriptions}/{result.total_models}",
-        f"  Columns documented: {result.documented_columns}/{result.total_columns} "
-        f"({_documentation_column_coverage(result):.1f}%)",
+        (
+            f"  Columns documented: {result.documented_columns}/{result.total_columns} "
+            f"({_documentation_column_coverage(result):.1f}%)"
+        ),
         f"  Gaps: {len(result.gaps)}",
     ]
     for gap in result.gaps[:20]:

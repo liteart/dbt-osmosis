@@ -1,6 +1,6 @@
 # pyright: reportAny=false, reportImplicitOverride=false
 import typing as t
-from hashlib import md5
+from hashlib import sha256
 
 from streamlit import session_state as state
 from streamlit_elements_fluence import editor, mui  # pyright: ignore[reportMissingTypeStubs]
@@ -47,7 +47,7 @@ class Renderer(Dashboard.Item):
                     theme="vs-dark" if self._dark_mode else "light",
                     options={**props, "readOnly": True},
                     key=(
-                        md5(
+                        sha256(
                             state.app.compiled_query.encode("utf-8")
                             + state.app.target_name.encode("utf-8"),
                         ).hexdigest()

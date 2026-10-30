@@ -71,6 +71,18 @@ class TestGetRotatingLogHandler:
 
 
 class TestGetLogger:
+    def test_unwritable_log_directory_falls_back_to_console(self, tmp_path, monkeypatch):
+        def fail(*args, **kwargs):
+            raise OSError("read-only filesystem")
+
+        monkeypatch.setattr(logger_module, "get_rotating_log_handler", fail)
+        test_logger = get_logger(name="unwritable-log-test", path=tmp_path)
+        assert any(isinstance(handler, RichHandler) for handler in test_logger.handlers)
+        assert not any(
+            isinstance(handler, logging.handlers.RotatingFileHandler)
+            for handler in test_logger.handlers
+        )
+
     def test_returns_logger_instance(self):
         """Test that get_logger returns a Logger instance"""
         logger = get_logger(name="test-logger")

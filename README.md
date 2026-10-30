@@ -29,15 +29,15 @@ The Docusaurus site is the canonical reference for the current CLI, configuratio
 
 `dbt-osmosis` currently targets:
 
-- Python 3.10-3.13
+- Python 3.10-3.14 (Python 3.14 requires a compatible dbt release and adapter)
 - dbt Core 1.8+ package resolution
 - a dbt adapter version compatible with the dbt Core runtime in that environment
 
-Audited blocking support covers dbt Core 1.8.x through 1.11.x in CI. The package metadata intentionally remains `dbt-core>=1.8` without an upper bound so installers can resolve newer dbt releases. Future dbt Core minors are canary-only until explicitly audited; scheduled/manual canary CI uses unpinned latest `dbt-core` and `dbt-duckdb` to make upstream breakage visible without redefining audited support. Install a dbt adapter version that is compatible with the dbt Core runtime in your environment; adapter compatibility is owned by the adapter and dbt Core pairing, not by dbt-osmosis extras.
+The CI matrix covers dbt Core 1.8.x through 1.12.x, subject to compatible Python and adapter versions. The package metadata remains `dbt-core>=1.8` without an upper bound. Install an adapter compatible with the selected dbt Core runtime; adapter compatibility is owned by the adapter and dbt Core pairing, not by dbt-osmosis extras.
 
 Optional extras:
 
-- `dbt-osmosis[workbench]` for the Streamlit workbench and related UI dependencies
+- `dbt-osmosis[workbench]` for the Streamlit workbench and related UI dependencies (Python 3.11+)
 - `dbt-osmosis[duckdb]` for the DuckDB adapter used by the demo project and local fixture workflows
 - `dbt-osmosis[openai]` for LLM-assisted synthesis and natural-language generation features
 - `dbt-osmosis[azure]` for Azure AD authentication used with Azure OpenAI
@@ -134,6 +134,9 @@ npm --prefix docs run serve
 ## Workbench
 
 The optional workbench is a Streamlit app for interactive dbt SQL development.
+It requires Python 3.11 or newer. Python 3.10 remains supported for the core
+CLI, but its available Pillow release has known security vulnerabilities, so
+the workbench dependencies are not installed on Python 3.10.
 
 Install the extra and launch it with:
 

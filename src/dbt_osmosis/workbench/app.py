@@ -13,11 +13,11 @@ from datetime import date, datetime
 from textwrap import dedent
 from types import SimpleNamespace
 
+import data_profiling
 import dbt.config.profile as dbt_profile
 import feedparser
 import pandas as pd
 import streamlit as st
-import ydata_profiling
 from dbt_common.clients.system import get_env
 from dbt_common.context import set_invocation_context
 from streamlit import session_state as state
@@ -490,16 +490,16 @@ def run_query() -> None:
         state.app.query_result_rows = output
 
 
-def build_profile_report(minimal: bool = True) -> ydata_profiling.ProfileReport:
+def build_profile_report(minimal: bool = True) -> data_profiling.ProfileReport:
     """Build a profile report for a given dataframe.
 
-    This is a wrapper around the ydata_profiling library. It is cached to avoid
+    This is a wrapper around the data_profiling library. It is cached to avoid
     re-running the report every time the user changes the SQL query.
     """
     return state.app.query_result_df.profile_report(minimal=minimal)
 
 
-def convert_profile_report_to_html(profile: ydata_profiling.ProfileReport) -> str:
+def convert_profile_report_to_html(profile: data_profiling.ProfileReport) -> str:
     """Convert a profile report to HTML."""
     return profile.to_html()
 

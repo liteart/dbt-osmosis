@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from packaging.requirements import Requirement
+
 try:
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10
@@ -10,7 +12,7 @@ except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RUFF_VERSION = "0.15.17"
+RUFF_VERSION = "0.17.3"
 SUPPORTED_EXTRA_INSTALLS = (".[openai]", ".[azure]", ".[workbench]", ".[duckdb]", ".[proxy]")
 SUPPORT_POLICY_DOCS = (
     ROOT / "README.md",
@@ -52,10 +54,9 @@ def test_dbt_core_dependency_remains_open_for_future_canaries() -> None:
 
 def test_docs_state_audited_support_and_future_canary_policy() -> None:
     required_policy_phrases = (
-        "Audited blocking support covers dbt Core 1.8.x through 1.11.x",
-        "package metadata intentionally remains `dbt-core>=1.8` without an upper bound",
-        "Future dbt Core minors are canary-only until explicitly audited",
-        "Install a dbt adapter version that is compatible with the dbt Core runtime",
+        "CI matrix covers dbt Core 1.8.x through 1.12.x",
+        "package metadata remains `dbt-core>=1.8` without an upper bound",
+        "Install an adapter compatible with the selected dbt Core runtime",
     )
 
     for path in SUPPORT_POLICY_DOCS:
@@ -108,10 +109,18 @@ def test_base_dependencies_and_optional_extras_are_intentional() -> None:
     assert "dbt-duckdb" not in _package_names(extras["workbench"])
     assert "openai" not in workbench_packages
     assert "pandas" in workbench_packages
-    assert "ydata-profiling" in workbench_packages
+    assert "fg-data-profiling" in workbench_packages
     assert "ipython" in workbench_packages
-    assert "streamlit>=1.45.0,<2.0" in extras["workbench"]
-    assert "setuptools>=70,<81" in extras["workbench"]
+    workbench_requirements = [Requirement(item) for item in extras["workbench"]]
+    assert all(
+        req.marker is not None
+        and not req.marker.evaluate({"python_version": "3.10"})
+        and req.marker.evaluate({"python_version": "3.11"})
+        for req in workbench_requirements
+    )
+    pillow = next(req for req in workbench_requirements if req.name.lower() == "pillow")
+    assert pillow.specifier.contains("13.0.0")
+    assert not pillow.specifier.contains("12.3.0")
     assert "dbt-duckdb" in _package_names(extras["duckdb"])
     assert "mysql-mimic" in _package_names(extras["proxy"])
     assert "azure-identity" in _package_names(extras["azure"])
@@ -126,8 +135,8 @@ def test_workbench_requirements_reference_current_supported_extras() -> None:
         "gitpython>=3.1.50",
         "h11>=0.16.0",
         "idna>=3.15",
-        "ipython>=8.10.0,<9",
-        "pillow>=12.2.0",
+        "ipython>=9,<10; python_version >=",
+        "pillow>=13,<14",
         "pyarrow>=23.0.1",
     ):
         assert constraint in requirements

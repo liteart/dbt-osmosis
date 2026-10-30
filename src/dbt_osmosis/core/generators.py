@@ -20,6 +20,7 @@ from dbt_osmosis.core.schema.parser import create_yaml_instance
 from dbt_osmosis.core.settings import YamlRefactorSettings
 from dbt_osmosis.core.staging import (
     StagingGenerationResult,
+    _validated_staging_paths,
     generate_staging_for_source,
 )
 
@@ -81,8 +82,10 @@ def _resolve_staging_output_paths(
     if staging_path is None:
         project_root = Path(context.config.project_dir)
         staging_path = project_root / "models" / "staging"
+        if not staging_path.resolve().is_relative_to(project_root.resolve()):
+            raise ValueError("Default staging directory resolves outside the project root")
 
-    return staging_path / f"{staging_name}.sql", staging_path / f"{staging_name}.yml"
+    return _validated_staging_paths(staging_path, staging_name)
 
 
 def _dump_generated_yaml(data: dict[str, t.Any]) -> str:

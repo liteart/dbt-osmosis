@@ -20,7 +20,12 @@ def _filter_config_field(d: dict[str, t.Any]) -> dict[str, t.Any]:
     which contains redundant 'meta' and 'tags' that duplicate top-level fields.
     The 'doc_blocks' field is also added but not relevant for these tests.
     """
-    return {k: v for k, v in d.items() if k not in ("config", "doc_blocks")}
+    # dbt 1.12 adds optional semantic fields to ColumnInfo serialization.
+    return {
+        k: v
+        for k, v in d.items()
+        if k not in ("config", "doc_blocks") and not (k in ("dimension", "entity") and v is None)
+    }
 
 
 dbt_version = Version(dbt.version.get_installed_version().to_version_string(skip_matcher=True))

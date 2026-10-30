@@ -16,7 +16,7 @@ Use this page as the shortest truthful path from install to a safe first refacto
 
 ## Prerequisites
 
-- Python 3.10-3.13
+- Python 3.10-3.14 (Python 3.14 requires a compatible dbt release and adapter)
 - dbt Core 1.8+ package resolution and a dbt adapter version compatible with that runtime
 - a dbt project with models (and optionally sources)
 - a clean git working tree for reviewable YAML diffs
@@ -25,7 +25,7 @@ Use this page as the shortest truthful path from install to a safe first refacto
 
 `dbt-osmosis` keeps its package support open for dbt Core 1.8+.
 
-Audited blocking support covers dbt Core 1.8.x through 1.11.x in CI. The package metadata intentionally remains `dbt-core>=1.8` without an upper bound so installers can resolve newer dbt releases. Future dbt Core minors are canary-only until explicitly audited; scheduled/manual canary CI uses unpinned latest `dbt-core` and `dbt-duckdb` to make upstream breakage visible without redefining audited support. Install a dbt adapter version that is compatible with the dbt Core runtime in your environment; adapter compatibility is owned by the adapter and dbt Core pairing, not by dbt-osmosis extras.
+The CI matrix covers dbt Core 1.8.x through 1.12.x, subject to compatible Python and adapter versions. The package metadata remains `dbt-core>=1.8` without an upper bound. Install an adapter compatible with the selected dbt Core runtime; adapter compatibility is owned by the adapter and dbt Core pairing, not by dbt-osmosis extras.
 
 ```bash
 uv tool install --with="dbt-<adapter>" dbt-osmosis
@@ -39,7 +39,7 @@ pip install "dbt-osmosis" "dbt-<adapter>"
 
 Optional extras:
 
-- `dbt-osmosis[workbench]` enables the Streamlit workbench
+- `dbt-osmosis[workbench]` enables the Streamlit workbench on Python 3.11 or newer; Python 3.10 remains available for the core CLI
 - `dbt-osmosis[duckdb]` installs the DuckDB adapter used by the demo project and fixture workflows
 - `dbt-osmosis[openai]` enables synthesis and natural-language generation features
 - `dbt-osmosis[azure]` installs Azure AD authentication support for Azure OpenAI

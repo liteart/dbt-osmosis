@@ -2,10 +2,12 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+import pytest
 import ruamel.yaml
+from click import ClickException
 from click.testing import CliRunner
 
-from dbt_osmosis.cli.main import cli
+from dbt_osmosis.cli.main import _write_generated_sql, cli
 
 
 def _mock_project(project_root: Path):
@@ -476,6 +478,55 @@ def test_generate_staging_refuses_existing_yaml_without_overwrite(tmp_path: Path
     assert "--overwrite" in result.output
     assert yaml_path.read_text(encoding="utf-8") == original_yaml
     assert not sql_path.exists()
+
+
+@pytest.mark.parametrize("command", ["model", "staging"])
+def test_generate_refuses_existing_sql_without_overwrite(tmp_path: Path, command: str):
+    """An existing SQL file must not be silently replaced or leave new YAML behind."""
+    root = tmp_path / "models"
+    sql_path = root / ("stg_safe_model.sql" if command == "model" else "staging/stg_users.sql")
+    yaml_path = sql_path.with_suffix(".yml")
+    sql_path.parent.mkdir(parents=True)
+    sql_path.write_text("select 'original'", encoding="utf-8")
+    generated = mock.Mock(
+        staging_name="stg_users",
+        sql_content="select 1",
+        yaml_content="version: 2\nmodels:\n  - name: stg_users\n",
+        sql_path=sql_path,
+        yaml_path=yaml_path,
+    )
+    args = ["generate", command]
+    if command == "model":
+        args += ["build a model", "--output-path", str(sql_path), "--schema-yml", str(yaml_path)]
+    else:
+        args += ["raw", "users"]
+    args += ["--project-dir", str(tmp_path), "--profiles-dir", str(tmp_path)]
+    with (
+        mock.patch(
+            "dbt_osmosis.cli.main.create_dbt_project_context", return_value=_mock_project(tmp_path)
+        ),
+        mock.patch(
+            "dbt_osmosis.cli.main.generate_dbt_model_from_nl", return_value=_mock_model_spec()
+        ),
+        mock.patch("dbt_osmosis.cli.main.generate_staging_from_source", return_value=generated),
+    ):
+        result = CliRunner().invoke(cli, args)
+        assert result.exit_code != 0
+        assert "--overwrite" in result.output
+        assert sql_path.read_text(encoding="utf-8") == "select 'original'"
+        assert not yaml_path.exists()
+        result = CliRunner().invoke(cli, [*args, "--overwrite"])
+        assert result.exit_code == 0, result.output
+        assert sql_path.read_text(encoding="utf-8") != "select 'original'"
+        assert yaml_path.exists()
+
+
+def test_exclusive_sql_write_catches_a_late_existing_file(tmp_path: Path):
+    sql_path = tmp_path / "model.sql"
+    sql_path.write_text("original", encoding="utf-8")
+    with pytest.raises(ClickException, match="--overwrite"):
+        _write_generated_sql(sql_path, "replacement", overwrite=False)
+    assert sql_path.read_text(encoding="utf-8") == "original"
 
 
 def test_generate_staging_refuses_sql_path_outside_project_root_without_yaml(

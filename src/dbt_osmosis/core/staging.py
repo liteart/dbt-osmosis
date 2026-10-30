@@ -7,11 +7,13 @@ discover sources and generate appropriate staging SQL and YAML documentation.
 
 from __future__ import annotations
 
+import io
 import typing as t
 from dataclasses import dataclass
 from pathlib import Path
 
 from dbt.contracts.graph.nodes import SourceDefinition
+from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 
 from dbt_osmosis.core import logger
 from dbt_osmosis.core.config import DbtProjectContext
@@ -19,6 +21,7 @@ from dbt_osmosis.core.llm import (
     StagingModelSpec,
     generate_staging_model_spec,
 )
+from dbt_osmosis.core.schema.parser import OsmosisYAML
 from dbt_osmosis.core.settings import YamlRefactorSettings
 
 __all__ = [
@@ -85,7 +88,7 @@ def _get_source_table_columns(
         relation = adapter.Relation.create(
             database=getattr(source_def, "database", None),
             schema=source_def.schema,
-            identifier=source_def.name,
+            identifier=getattr(source_def, "identifier", None) or source_def.name,
         )
         columns = adapter.get_columns_in_relation(relation)
 
@@ -135,6 +138,22 @@ def _get_source_table_from_manifest(
     return None
 
 
+def _validated_staging_paths(staging_dir: Path, staging_name: str) -> tuple[Path, Path]:
+    """Keep generated filenames inside the intended directory, including symlinks."""
+    if (
+        not isinstance(staging_name, str)
+        or not staging_name.strip()
+        or staging_name in {".", ".."}
+        or any(char in staging_name for char in ("/", "\\", "\x00", ":"))
+    ):
+        raise ValueError(f"Invalid staging model name: {staging_name!r}")
+    root = staging_dir.resolve()
+    paths = tuple(staging_dir / f"{staging_name}{suffix}" for suffix in (".sql", ".yml"))
+    if any(not path.resolve().is_relative_to(root) for path in paths):
+        raise ValueError("Generated staging path resolves outside the staging directory")
+    return paths[0], paths[1]
+
+
 def _infer_staging_model_path(
     project: DbtProjectContext,
     settings: YamlRefactorSettings,
@@ -154,13 +173,12 @@ def _infer_staging_model_path(
 
     # Default: models/staging/ directory
     staging_dir = project_dir / "models" / "staging"
+    if not staging_dir.resolve().is_relative_to(project_dir.resolve()):
+        raise ValueError("Default staging directory resolves outside the project root")
 
     # Check if there's a custom staging pattern configured
     # For now, use a simple convention
-    sql_path = staging_dir / f"{staging_name}.sql"
-    yaml_path = staging_dir / f"{staging_name}.yml"
-
-    return sql_path, yaml_path
+    return _validated_staging_paths(staging_dir, staging_name)
 
 
 def generate_staging_for_source(
@@ -205,9 +223,9 @@ def generate_staging_for_source(
                     "description": col_def.description or "",
                 })
             logger.info(":page_facing_up: Found %d columns in manifest", len(columns))
-        else:
-            # Fall back to database introspection
-            logger.info(":mag: Source not in manifest, introspecting database...")
+        if not columns and source_def:
+            # A source can be present in the manifest without documented columns.
+            logger.info(":mag: No source columns in manifest, introspecting database...")
             columns = _get_source_table_columns(project, source_name, table_name)
 
         if not columns:
@@ -314,12 +332,14 @@ def _matches_pattern(text: str, pattern: str) -> bool:
 def write_staging_files(
     result: StagingGenerationResult,
     dry_run: bool = False,
+    overwrite: bool = False,
 ) -> None:
     """Write the generated staging model files to disk.
 
     Args:
         result: The staging generation result
         dry_run: If True, skip writing files
+        overwrite: If True, allow existing files to be replaced
     """
     if result.error or result.spec is None:
         logger.warning(
@@ -329,11 +349,20 @@ def write_staging_files(
 
     spec = result.spec
 
+    # Recheck both targets before writing, in case a target became a symlink
+    # after the model was generated.
+    for target in (result.sql_path, result.yaml_path):
+        if target is not None and not target.resolve().is_relative_to(target.parent.resolve()):
+            raise ValueError("Generated staging path resolves outside the staging directory")
+        if target is not None and not dry_run and not overwrite and target.exists():
+            raise FileExistsError(f"Refusing to overwrite existing staging file: {target}")
+
     if result.sql_path:
         logger.info(":writing_hand: Writing SQL => %s", result.sql_path)
         if not dry_run:
             result.sql_path.parent.mkdir(parents=True, exist_ok=True)
-            result.sql_path.write_text(spec.to_sql(), encoding="utf-8")
+            with result.sql_path.open("w" if overwrite else "x", encoding="utf-8") as output:
+                output.write(spec.to_sql())
 
     if result.yaml_path:
         # Generate YAML documentation
@@ -342,7 +371,8 @@ def write_staging_files(
         logger.info(":writing_hand: Writing YAML => %s", result.yaml_path)
         if not dry_run:
             result.yaml_path.parent.mkdir(parents=True, exist_ok=True)
-            result.yaml_path.write_text(yaml_content, encoding="utf-8")
+            with result.yaml_path.open("w" if overwrite else "x", encoding="utf-8") as output:
+                output.write(yaml_content)
 
 
 def _generate_staging_yaml(spec: StagingModelSpec) -> str:
@@ -354,25 +384,25 @@ def _generate_staging_yaml(spec: StagingModelSpec) -> str:
     Returns:
         YAML content as a string
     """
-    lines = [
-        "---",
-        "version: 2",
-        "models:",
-        f"  - name: {spec.staging_name}",
-        f'    description: "{spec.description}"',
-    ]
-
+    model: dict[str, t.Any] = {
+        "name": DoubleQuotedScalarString(spec.staging_name),
+        "description": DoubleQuotedScalarString(spec.description),
+    }
     if spec.columns:
-        lines.append("    columns:")
-
-        for col in spec.columns:
-            col_entry = f"      - name: {col.new_name}"
-            if col.description:
-                col_entry += f'\n        description: "{col.description}"'
-
-            # Add data_type if available (would need to be inferred from columns)
-            # For now, skip data_type in YAML as it's optional
-
-            lines.append(col_entry)
-
-    return "\n".join(lines) + "\n"
+        model["columns"] = [
+            {
+                "name": DoubleQuotedScalarString(col.new_name),
+                **(
+                    {"description": DoubleQuotedScalarString(col.description)}
+                    if col.description
+                    else {}
+                ),
+            }
+            for col in spec.columns
+        ]
+    # The standard round-trip representer preserves the exact scalar value.
+    yaml_handler = OsmosisYAML()
+    yaml_handler.explicit_start = True
+    with io.BytesIO() as buffer:
+        yaml_handler.dump({"version": 2, "models": [model]}, buffer)
+        return buffer.getvalue().decode("utf-8")

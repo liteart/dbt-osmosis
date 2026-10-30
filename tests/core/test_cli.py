@@ -1,15 +1,18 @@
 # pyright: reportPrivateImportUsage=false, reportPrivateUsage=false, reportUnknownParameterType=false, reportMissingParameterType=false, reportAny=false, reportUnknownMemberType=false, reportUnknownArgumentType=false, reportArgumentType=false, reportFunctionMemberAccess=false, reportUnknownVariableType=false, reportUnusedParameter=false
 
+import os
 import subprocess
+import sys
 import typing as t
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
 import pytest
+from click import ClickException
 from click.testing import CliRunner
 
-from dbt_osmosis.cli.main import cli
+from dbt_osmosis.cli.main import _require_workbench_python, _streamlit_executable, cli
 from dbt_osmosis.core.diff import ChangeCategory, ChangeSeverity, ColumnAdded, SchemaDiffResult
 from dbt_osmosis.core.discovery import DiscoveryResult, DocumentationGap
 from dbt_osmosis.core.exceptions import LLMConfigurationError
@@ -840,6 +843,25 @@ def test_workbench_missing_streamlit_has_workbench_extra_hint(
     assert "pip install dbt-osmosis[workbench]" in result.output
 
 
+def test_streamlit_executable_found_next_to_python(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    streamlit = tmp_path / ("streamlit.exe" if os.name == "nt" else "streamlit")
+    streamlit.touch()
+    monkeypatch.setattr("shutil.which", lambda name: None)
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "python"))
+    assert _streamlit_executable() == str(streamlit)
+
+
+def test_workbench_rejects_python_310_with_actionable_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with monkeypatch.context() as patcher:
+        patcher.setattr(sys, "version_info", (3, 10))
+        with pytest.raises(ClickException, match="Python 3.11 or newer"):
+            _require_workbench_python()
+
+
 def test_workbench_missing_extra_dependency_has_workbench_extra_hint(
     runner: CliRunner,
     monkeypatch: pytest.MonkeyPatch,
@@ -870,7 +892,7 @@ def test_workbench_transitive_import_failure_has_workbench_extra_hint(
     monkeypatch.setattr("shutil.which", lambda name: "streamlit")
 
     def import_module(name: str) -> object:
-        if name == "ydata_profiling":
+        if name == "data_profiling":
             raise ImportError("No module named 'IPython'")
         return object()
 
@@ -880,7 +902,7 @@ def test_workbench_transitive_import_failure_has_workbench_extra_hint(
 
     assert result.exit_code != 0
     assert "Workbench optional dependencies are missing" in result.output
-    assert "ydata_profiling" in result.output
+    assert "data_profiling" in result.output
     assert "IPython" in result.output
     assert "pip install dbt-osmosis[workbench]" in result.output
     run.assert_not_called()

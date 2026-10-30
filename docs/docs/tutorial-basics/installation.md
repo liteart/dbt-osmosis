@@ -8,7 +8,7 @@ Pick the installation approach that matches your workflow. All examples assume y
 
 dbt-osmosis keeps its package support open for dbt Core 1.8+.
 
-Audited blocking support covers dbt Core 1.8.x through 1.11.x in CI. The package metadata intentionally remains `dbt-core>=1.8` without an upper bound so installers can resolve newer dbt releases. Future dbt Core minors are canary-only until explicitly audited; scheduled/manual canary CI uses unpinned latest `dbt-core` and `dbt-duckdb` to make upstream breakage visible without redefining audited support. Install a dbt adapter version that is compatible with the dbt Core runtime in your environment; adapter compatibility is owned by the adapter and dbt Core pairing, not by dbt-osmosis extras.
+The CI matrix covers dbt Core 1.8.x through 1.12.x, subject to compatible Python and adapter versions. The package metadata remains `dbt-core>=1.8` without an upper bound. Install an adapter compatible with the selected dbt Core runtime; adapter compatibility is owned by the adapter and dbt Core pairing, not by dbt-osmosis extras.
 
 ## Install with `uv` (recommended)
 
@@ -36,7 +36,7 @@ This installs into the active Python environment (virtualenv, venv, or system Py
 
 ## Optional extras
 
-- `dbt-osmosis[workbench]` installs the Streamlit workbench UI dependencies.
+- `dbt-osmosis[workbench]` installs the Streamlit workbench UI dependencies on Python 3.11 or newer. On Python 3.10 the core CLI remains available, but workbench dependencies are not installed because no security-fixed Pillow release is available for that Python version.
 - `dbt-osmosis[duckdb]` installs the DuckDB adapter used by the demo project and fixture workflows.
 - `dbt-osmosis[openai]` installs the OpenAI SDK for synthesis, natural-language generation, `test-llm`, and AI test suggestions. If `LLM_PROVIDER` is unset, these commands default to the OpenAI provider.
 - `dbt-osmosis[azure]` installs Azure AD authentication support for Azure OpenAI; use it together with `dbt-osmosis[openai]` for `LLM_PROVIDER=azure-openai-ad`.

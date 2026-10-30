@@ -92,9 +92,9 @@ def _import_workbench_app_with_stubs(monkeypatch):
     pandas = types.ModuleType("pandas")
     pandas.DataFrame = _DataFrame
     monkeypatch.setitem(sys.modules, "pandas", pandas)
-    ydata_profiling = types.ModuleType("ydata_profiling")
-    ydata_profiling.ProfileReport = type("ProfileReport", (), {})
-    monkeypatch.setitem(sys.modules, "ydata_profiling", ydata_profiling)
+    data_profiling = types.ModuleType("data_profiling")
+    data_profiling.ProfileReport = type("ProfileReport", (), {})
+    monkeypatch.setitem(sys.modules, "data_profiling", data_profiling)
 
     monkeypatch.setitem(
         sys.modules,

@@ -63,7 +63,6 @@ def get_logger(
         level = getattr(logging, level, logging.INFO)
     logger = logging.getLogger(name)
     logger.setLevel(level)
-    logger.addHandler(get_rotating_log_handler(name, path, formatter))
     logger.addHandler(
         RichHandler(
             level=level,
@@ -74,6 +73,10 @@ def get_logger(
         ),
     )
     logger.propagate = False
+    try:
+        logger.addHandler(get_rotating_log_handler(name, path, formatter))
+    except OSError as exc:
+        logger.warning("Unable to create log file in %s: %s; using console logging", path, exc)
     return logger
 
 
